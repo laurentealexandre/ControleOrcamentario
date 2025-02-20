@@ -1,0 +1,130 @@
+.relatorios-container {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+    padding: 80px 20px 20px;
+  }
+  
+  .relatorios-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .relatorios-content h1 {
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 24px;
+    font-weight: 500;
+  }
+  
+  .relatorios-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 30px;
+  }
+  
+  .filtros-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    height: fit-content;
+  }
+  
+  .filtros-section h2 {
+    color: #333;
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+  
+  .filtros-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .gerar-button {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .gerar-button:hover:not(:disabled) {
+    background-color: #357abd;
+  }
+  
+  .gerar-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  .verbas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  
+  .verba-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    transition: all 0.2s ease;
+  }
+  
+  .verba-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .verba-card h3 {
+    color: #333;
+    font-size: 16px;
+    margin-bottom: 15px;
+  }
+  
+  .verba-info {
+    margin-bottom: 15px;
+  }
+  
+  .verba-info p {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .progress-bar {
+    height: 8
+  }
