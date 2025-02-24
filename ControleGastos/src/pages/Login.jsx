@@ -1,22 +1,42 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../services/authService';
 import '../styles/login.css';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Por enquanto, permite qualquer login
-    navigate('/verbas');
+    setError('');
+    
+    if (!email || !password) {
+      setError('Por favor, preencha todos os campos');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await login(email, password);
+      navigate('/verbas');
+    } catch (err) {
+      setError('Credenciais inválidas. Tente novamente.');
+      console.error('Erro no login:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="login-container">
       <div className="login-box">
         <h1>Controle de Gastos</h1>
+        
+        {error && <div className="error-message">{error}</div>}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -27,6 +47,7 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Seu email"
+              disabled={loading}
             />
           </div>
 
@@ -38,17 +59,18 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Sua senha"
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="login-button">
-            Entrar
+          <button 
+            type="submit" 
+            className="login-button"
+            disabled={loading}
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-
-        <p className="register-link">
-          Não tem uma conta? <a href="/registro">Registre-se</a>
-        </p>
       </div>
     </div>
   );

@@ -3,42 +3,36 @@ import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import GestaoVerbas from './pages/GestaoVerbas';
 import Relatorios from './pages/Relatorios';
-import Abastecimento from './pages/Abastecimento';
-import Correios from './pages/Correios';
-import Diarias from './pages/Diarias';
-import MaterialPermanente from './pages/MaterialPermanente';
-import ManutencaoVeiculos from './pages/ManutencaoVeiculos';
-import MaterialConsumo from './pages/MaterialConsumo';
-import Almoxarifado from './pages/Almoxarifado';
-import ParqueGrafico from './pages/ParqueGrafico';
-import Passagens from './pages/Passagens';
-import ManutencaoPredial from './pages/ManutencaoPredial';
-import Transportes from './pages/Transportes';
+import PrivateRoute from './components/PrivateRoute';
+// ... importações de páginas de categorias
 
 function App() {
   return (
     <Router>
       <Navbar />
       <Routes>
-        {/* Rota de Login */}
         <Route path="/" element={<Login />} />
-
-        {/* Rotas Principais */}
-        <Route path="/verbas" element={<GestaoVerbas />} />
-        <Route path="/relatorios" element={<Relatorios />} />
-
-        {/* Rotas de Categorias */}
-        <Route path="/categoria/abastecimento" element={<Abastecimento />} />
-        <Route path="/categoria/correios" element={<Correios />} />
-        <Route path="/categoria/diarias" element={<Diarias />} />
-        <Route path="/categoria/materialPermanente" element={<MaterialPermanente />} />
-        <Route path="/categoria/manutencaoVeiculos" element={<ManutencaoVeiculos />} />
-        <Route path="/categoria/materialConsumo" element={<MaterialConsumo />} />
-        <Route path="/categoria/almoxarifado" element={<Almoxarifado />} />
-        <Route path="/categoria/parqueGrafico" element={<ParqueGrafico />} />
-        <Route path="/categoria/passagens" element={<Passagens />} />
-        <Route path="/categoria/manutencaoPredial" element={<ManutencaoPredial />} />
-        <Route path="/categoria/transportes" element={<Transportes />} />
+        
+        <Route path="/verbas" element={
+          <PrivateRoute>
+            <GestaoVerbas />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/relatorios" element={
+          <PrivateRoute>
+            <Relatorios />
+          </PrivateRoute>
+        } />
+        
+        {/* Rotas para categorias */}
+        <Route path="/categoria/:categoria" element={
+          <PrivateRoute>
+            <CategoriaPage />
+          </PrivateRoute>
+        } />
+        
+        {/* ... outras rotas protegidas */}
       </Routes>
     </Router>
   );
