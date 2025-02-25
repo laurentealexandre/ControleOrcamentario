@@ -1,15 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createLancamento, getLancamentos } from '../services/lancamentoService';
 import '../styles/categorias.css';
 
 const ManutencaoPredial = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    servico: '',
-    valor: '',
     data: '',
-    numeroChamado: ''  // Novo campo adicionado
+    servico: '',
+    numero_chamado: '',
+    valor: ''
   });
+  const [lancamentos, setLancamentos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLancamentos = async () => {
+      try {
+        setLoading(true);
+        const data = await getLancamentos('manutencao-predial');
+        setLancamentos(data);
+      } catch (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLancamentos();
+  }, []);
 
   const handleChange = (campo, valor) => {
     setFormData(prev => ({
@@ -18,9 +37,31 @@ const ManutencaoPredial = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Dados da manutenção predial:', formData);
+    try {
+      setLoading(true);
+      await createLancamento('manutencao-predial', formData);
+      
+      // Limpar formulário
+      setFormData({
+        data: '',
+        servico: '',
+        numero_chamado: '',
+        valor: ''
+      });
+      
+      // Recarregar lançamentos
+      const data = await getLancamentos('manutencao-predial');
+      setLancamentos(data);
+      
+      alert('Lançamento criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar lançamento:', error);
+      alert('Erro ao criar lançamento. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,6 +82,7 @@ const ManutencaoPredial = () => {
                 type="date"
                 value={formData.data}
                 onChange={(e) => handleChange('data', e.target.value)}
+                required
               />
             </div>
 
@@ -48,9 +90,10 @@ const ManutencaoPredial = () => {
               <label>Nº do Chamado</label>
               <input
                 type="text"
-                value={formData.numeroChamado}
-                onChange={(e) => handleChange('numeroChamado', e.target.value)}
+                value={formData.numero_chamado}
+                onChange={(e) => handleChange('numero_chamado', e.target.value)}
                 placeholder="Digite o número do chamado"
+                required
               />
             </div>
 
@@ -62,24 +105,55 @@ const ManutencaoPredial = () => {
                 onChange={(e) => handleChange('valor', e.target.value)}
                 placeholder="R$ 0,00"
                 step="0.01"
+                required
               />
             </div>
 
             <div className="form-group" style={{ gridColumn: '1 / -1' }}>
               <label>Serviço</label>
-              <input
-                type="text"
+              <textarea
                 value={formData.servico}
                 onChange={(e) => handleChange('servico', e.target.value)}
-                placeholder="Descreva o serviço realizado"
+                placeholder="Descreva o serviço"
+                required
               />
             </div>
           </div>
 
-          <button type="submit" className="save-button">
-            Salvar
+          <button type="submit" className="save-button" disabled={loading}>
+            {loading ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
+
+        <div className="lancamentos-section">
+          <h2>Lançamentos Recentes</h2>
+          {loading ? (
+            <p>Carregando...</p>
+          ) : lancamentos.length === 0 ? (
+            <p>Nenhum lançamento encontrado.</p>
+          ) : (
+            <table className="lancamentos-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Nº Chamado</th>
+                  <th>Serviço</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lancamentos.map(item => (
+                  <tr key={item.id}>
+                    <td>{new Date(item.data).toLocaleDateString()}</td>
+                    <td>{item.numero_chamado}</td>
+                    <td>{item.servico}</td>
+                    <td>R$ {parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

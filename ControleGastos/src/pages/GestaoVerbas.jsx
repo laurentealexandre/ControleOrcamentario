@@ -1,24 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAllVerbas, updateVerba } from '../services/verbaService';
+import { getSaldoGeral } from '../services/saldoService';
 import '../styles/gestaoVerbas.css';
 
 const GestaoVerbas = () => {
   const navigate = useNavigate();
   const [editandoVerba, setEditandoVerba] = useState(null);
-  const [verbas, setVerbas] = useState({
-    abastecimento: { total: 10000, gasto: 4500 },
-    correios: { total: 5000, gasto: 2300 },
-    diarias: { total: 15000, gasto: 8900 },
-    materialPermanente: { total: 20000, gasto: 12000 },
-    manutencaoVeiculos: { total: 8000, gasto: 3500 },
-    materialConsumo: { total: 12000, gasto: 6800 },
-    almoxarifado: { total: 9000, gasto: 4200 },
-    parqueGrafico: { total: 7000, gasto: 3000 },
-    passagens: { total: 25000, gasto: 15000 },
-    manutencaoPredial: { total: 30000, gasto: 18000 },
-    transportes: { total: 18000, gasto: 9000 }
-  });
+  const [verbas, setVerbas] = useState({});
   const [novaVerba, setNovaVerba] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const categorias = [
     { id: 'abastecimento', nome: 'Abastecimento' },
@@ -34,20 +25,75 @@ const GestaoVerbas = () => {
     { id: 'transportes', nome: 'Transportes' }
   ];
 
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        setLoading(true);
+        const saldos = await getSaldoGeral();
+        
+        // Transformar array de saldos em objeto para fácil acesso
+        const saldosObj = {};
+        saldos.forEach(saldo => {
+          const categoriaId = categorias.find(c => c.nome === saldo.categoria)?.id;
+          if (categoriaId) {
+            saldosObj[categoriaId] = {
+              total: saldo.verba_total,
+              gasto: saldo.total_gasto,
+              saldo: saldo.saldo_atual
+            };
+          }
+        });
+        
+        setVerbas(saldosObj);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarDados();
+  }, []);
+
   const handleEditarVerba = (categoriaId) => {
     setEditandoVerba(categoriaId);
-    setNovaVerba(verbas[categoriaId].total.toString());
+    setNovaVerba(verbas[categoriaId]?.total.toString() || '0');
   };
 
-  const handleSalvarVerba = () => {
+  const handleSalvarVerba = async () => {
     if (editandoVerba) {
-      setVerbas(prev => ({
-        ...prev,
-        [editandoVerba]: {
-          ...prev[editandoVerba],
-          total: parseFloat(novaVerba) || 0
+      try {
+        // Aqui você precisaria do ID da verba para atualizar
+        // Para simplificar, pode-se criar uma nova verba com o valor atualizado
+        const valorTotal = parseFloat(novaVerba) || 0;
+        const anoAtual = new Date().getFullYear();
+        const mesAtual = new Date().getMonth() + 1;
+        
+        // Obter o ID da categoria a partir do nome da categoria
+        const categoriaObj = categorias.find(c => c.id === editandoVerba);
+        const categoriaId = categoriaObj?.id; // Isso é o ID da tabela categorias no BD
+        
+        if (categoriaId) {
+          // Atualizar a verba no backend
+          await updateVerba(categoriaId, {
+            valor_total: valorTotal,
+            ano: anoAtual,
+            mes: mesAtual
+          });
+          
+          // Atualizar o estado local
+          setVerbas(prev => ({
+            ...prev,
+            [editandoVerba]: {
+              ...prev[editandoVerba],
+              total: valorTotal
+            }
+          }));
         }
-      }));
+      } catch (error) {
+        console.error('Erro ao salvar verba:', error);
+      }
+      
       setEditandoVerba(null);
       setNovaVerba('');
     }
@@ -57,6 +103,10 @@ const GestaoVerbas = () => {
     setEditandoVerba(null);
     setNovaVerba('');
   };
+
+  if (loading) {
+    return <div className="loading">Carregando...</div>;
+  }
 
   return (
     <div className="verbas-container">
@@ -88,9 +138,9 @@ const GestaoVerbas = () => {
                   </div>
                 ) : (
                   <>
-                    <p>Verba Total: R$ {verbas[categoria.id].total.toLocaleString()}</p>
-                    <p>Gasto: R$ {verbas[categoria.id].gasto.toLocaleString()}</p>
-                    <p>Saldo: R$ {(verbas[categoria.id].total - verbas[categoria.id].gasto).toLocaleString()}</p>
+                    <p>Verba Total: R$ {verbas[categoria.id]?.total.toLocaleString() || '0,00'}</p>
+                    <p>Gasto: R$ {verbas[categoria.id]?.gasto.toLocaleString() || '0,00'}</p>
+                    <p>Saldo: R$ {verbas[categoria.id]?.saldo.toLocaleString() || '0,00'}</p>
                     <div className="botoes-verba">
                       <button 
                         onClick={() => handleEditarVerba(categoria.id)}
@@ -112,8 +162,8 @@ const GestaoVerbas = () => {
                 <div 
                   className="progress" 
                   style={{ 
-                    width: `${(verbas[categoria.id].gasto / verbas[categoria.id].total) * 100}%`,
-                    backgroundColor: verbas[categoria.id].gasto > verbas[categoria.id].total ? '#dc3545' : '#4a90e2'
+                    width: `${verbas[categoria.id] ? (verbas[categoria.id].gasto / verbas[categoria.id].total) * 100 : 0}%`,
+                    backgroundColor: verbas[categoria.id] && verbas[categoria.id].gasto > verbas[categoria.id].total ? '#dc3545' : '#4a90e2'
                   }}
                 ></div>
               </div>

@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createLancamento, getLancamentos } from '../services/lancamentoService';
 import '../styles/categorias.css';
 
 const ParqueGrafico = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    valor: '',
-    mes: ''
+    mes: '',
+    valor: ''
   });
+  const [lancamentos, setLancamentos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLancamentos = async () => {
+      try {
+        setLoading(true);
+        const data = await getLancamentos('parque-grafico');
+        setLancamentos(data);
+      } catch (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLancamentos();
+  }, []);
 
   const handleChange = (campo, valor) => {
     setFormData(prev => ({
@@ -16,9 +35,29 @@ const ParqueGrafico = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Dados do parque gráfico:', formData);
+    try {
+      setLoading(true);
+      await createLancamento('parque-grafico', formData);
+      
+      // Limpar formulário
+      setFormData({
+        mes: '',
+        valor: ''
+      });
+      
+      // Recarregar lançamentos
+      const data = await getLancamentos('parque-grafico');
+      setLancamentos(data);
+      
+      alert('Lançamento criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar lançamento:', error);
+      alert('Erro ao criar lançamento. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,6 +78,7 @@ const ParqueGrafico = () => {
                 type="month"
                 value={formData.mes}
                 onChange={(e) => handleChange('mes', e.target.value)}
+                required
               />
             </div>
 
@@ -50,14 +90,41 @@ const ParqueGrafico = () => {
                 onChange={(e) => handleChange('valor', e.target.value)}
                 placeholder="R$ 0,00"
                 step="0.01"
+                required
               />
             </div>
           </div>
 
-          <button type="submit" className="save-button">
-            Salvar
+          <button type="submit" className="save-button" disabled={loading}>
+            {loading ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
+
+        <div className="lancamentos-section">
+          <h2>Lançamentos Recentes</h2>
+          {loading ? (
+            <p>Carregando...</p>
+          ) : lancamentos.length === 0 ? (
+            <p>Nenhum lançamento encontrado.</p>
+          ) : (
+            <table className="lancamentos-table">
+              <thead>
+                <tr>
+                  <th>Mês</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lancamentos.map(item => (
+                  <tr key={item.id}>
+                    <td>{new Date(item.mes).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</td>
+                    <td>R$ {parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

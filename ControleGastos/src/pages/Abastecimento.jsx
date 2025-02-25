@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createLancamento, getLancamentos } from '../services/lancamentoService';
 import '../styles/categorias.css';
 
 const Abastecimento = () => {
@@ -10,9 +11,27 @@ const Abastecimento = () => {
     km: '',
     patrimonio: '',
     solicitante: '',
-    numeroChamado: '',
-    valorAbastecido: ''
+    numero_chamado: '',
+    valor: ''
   });
+  const [lancamentos, setLancamentos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLancamentos = async () => {
+      try {
+        setLoading(true);
+        const data = await getLancamentos('abastecimento');
+        setLancamentos(data);
+      } catch (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLancamentos();
+  }, []);
 
   const handleChange = (campo, valor) => {
     setFormData(prev => ({
@@ -21,10 +40,34 @@ const Abastecimento = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Dados do abastecimento:', formData);
-    // Aqui iremos implementar a lógica para salvar os dados
+    try {
+      setLoading(true);
+      await createLancamento('abastecimento', formData);
+      
+      // Limpar formulário
+      setFormData({
+        data: '',
+        placa: '',
+        km: '',
+        patrimonio: '',
+        solicitante: '',
+        numero_chamado: '',
+        valor: ''
+      });
+      
+      // Recarregar lançamentos
+      const data = await getLancamentos('abastecimento');
+      setLancamentos(data);
+      
+      alert('Lançamento criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar lançamento:', error);
+      alert('Erro ao criar lançamento. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,6 +88,7 @@ const Abastecimento = () => {
                 type="date"
                 value={formData.data}
                 onChange={(e) => handleChange('data', e.target.value)}
+                required
               />
             </div>
 
@@ -55,6 +99,7 @@ const Abastecimento = () => {
                 value={formData.placa}
                 onChange={(e) => handleChange('placa', e.target.value)}
                 placeholder="Digite a placa"
+                required
               />
             </div>
 
@@ -65,6 +110,7 @@ const Abastecimento = () => {
                 value={formData.km}
                 onChange={(e) => handleChange('km', e.target.value)}
                 placeholder="Digite a quilometragem"
+                required
               />
             </div>
 
@@ -75,6 +121,7 @@ const Abastecimento = () => {
                 value={formData.patrimonio}
                 onChange={(e) => handleChange('patrimonio', e.target.value)}
                 placeholder="Digite o patrimônio"
+                required
               />
             </div>
 
@@ -85,6 +132,7 @@ const Abastecimento = () => {
                 value={formData.solicitante}
                 onChange={(e) => handleChange('solicitante', e.target.value)}
                 placeholder="Digite o solicitante"
+                required
               />
             </div>
 
@@ -92,28 +140,62 @@ const Abastecimento = () => {
               <label>Nº Chamado</label>
               <input
                 type="text"
-                value={formData.numeroChamado}
-                onChange={(e) => handleChange('numeroChamado', e.target.value)}
+                value={formData.numero_chamado}
+                onChange={(e) => handleChange('numero_chamado', e.target.value)}
                 placeholder="Digite o número do chamado"
+                required
               />
             </div>
 
             <div className="form-group">
-              <label>Valor Abastecido</label>
+              <label>Valor</label>
               <input
                 type="number"
-                value={formData.valorAbastecido}
-                onChange={(e) => handleChange('valorAbastecido', e.target.value)}
+                value={formData.valor}
+                onChange={(e) => handleChange('valor', e.target.value)}
                 placeholder="R$ 0,00"
                 step="0.01"
+                required
               />
             </div>
           </div>
 
-          <button type="submit" className="save-button">
-            Salvar
+          <button type="submit" className="save-button" disabled={loading}>
+            {loading ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
+
+        <div className="lancamentos-section">
+          <h2>Lançamentos Recentes</h2>
+          {loading ? (
+            <p>Carregando...</p>
+          ) : lancamentos.length === 0 ? (
+            <p>Nenhum lançamento encontrado.</p>
+          ) : (
+            <table className="lancamentos-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Placa</th>
+                  <th>KM</th>
+                  <th>Solicitante</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lancamentos.map(item => (
+                  <tr key={item.id}>
+                    <td>{new Date(item.data).toLocaleDateString()}</td>
+                    <td>{item.placa}</td>
+                    <td>{item.km}</td>
+                    <td>{item.solicitante}</td>
+                    <td>R$ {parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );
