@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { getSaldoGeral } from '../services/saldoService';
+import { getLancamentos } from '../services/lancamentoService';
 import '../styles/relatorios.css';
 
 const Relatorios = () => {
@@ -10,6 +12,7 @@ const Relatorios = () => {
     dataFim: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [verbas, setVerbas] = useState({});
 
   const categorias = [
     { id: 'todas', nome: 'Todas as Categorias' },
@@ -26,109 +29,35 @@ const Relatorios = () => {
     { id: 'transportes', nome: 'Transportes' }
   ];
 
-  // Dados mockados para exemplo
-  const dadosVerbas = {
-    abastecimento: { verba: 10000, gasto: 4500 },
-    correios: { verba: 5000, gasto: 2300 },
-    diarias: { verba: 15000, gasto: 8900 },
-    materialPermanente: { verba: 20000, gasto: 12000 },
-    manutencaoVeiculos: { verba: 8000, gasto: 3500 },
-    materialConsumo: { verba: 12000, gasto: 6800 },
-  };
+  // Carregar saldos ao montar o componente
+  useEffect(() => {
+    carregarSaldos();
+  }, []);
 
-  const gerarDadosLancamentos = () => {
-    const lancamentos = [];
-    const categoriasFiltradas = filtros.categoria === 'todas' 
-      ? Object.keys(dadosVerbas) 
-      : [filtros.categoria];
-
-    categoriasFiltradas.forEach(categoria => {
-      // Simula alguns lançamentos para cada categoria
-      for (let i = 0; i < 3; i++) {
-        const lancamentoBase = {
-          categoria: categorias.find(cat => cat.id === categoria)?.nome,
-          data: '2025-02-19',
-          valor: Math.random() * 1000,
-          solicitante: 'Nome do Solicitante',
-          numeroChamado: '',
-          justificativa: '',
-          destino: '',
-          pcdp: '',
-          placa: '',
-          km: '',
-          patrimonio: '',
-          numeroRequisicao: '',
-          material: '',
-          servico: '',
-          mes: ''
-        };
-
-        // Adiciona campos específicos baseado na categoria
-        switch (categoria) {
-          case 'abastecimento':
-            lancamentoBase.placa = 'ABC-1234';
-            lancamentoBase.km = '50000';
-            lancamentoBase.patrimonio = '12345';
-            lancamentoBase.numeroChamado = 'CHAM-001';
-            break;
-
-          case 'correios':
-            lancamentoBase.justificativa = 'Envio de documentos';
-            lancamentoBase.destino = 'São Paulo';
-            break;
-
-          case 'diarias':
-            lancamentoBase.justificativa = 'Viagem a trabalho';
-            lancamentoBase.pcdp = 'PCDP-001';
-            break;
-
-          case 'materialPermanente':
-            lancamentoBase.numeroRequisicao = 'REQ-001';
-            lancamentoBase.material = 'Computador';
-            break;
-
-          case 'manutencaoVeiculos':
-            lancamentoBase.placa = 'DEF-5678';
-            lancamentoBase.km = '45000';
-            lancamentoBase.patrimonio = '67890';
-            lancamentoBase.numeroChamado = 'CHAM-002';
-            break;
-
-          case 'materialConsumo':
-            lancamentoBase.numeroRequisicao = 'REQ-002';
-            lancamentoBase.material = 'Material de Escritório';
-            break;
-
-          case 'almoxarifado':
-            lancamentoBase.numeroRequisicao = 'REQ-003';
-            lancamentoBase.material = 'Material de Limpeza';
-            break;
-
-          case 'parqueGrafico':
-            lancamentoBase.mes = '2025-02';
-            break;
-
-          case 'passagens':
-            lancamentoBase.justificativa = 'Viagem a trabalho';
-            lancamentoBase.pcdp = 'PCDP-002';
-            break;
-
-          case 'manutencaoPredial':
-            lancamentoBase.servico = 'Manutenção do ar condicionado';
-            lancamentoBase.numeroChamado = 'CHAM-003';
-            break;
-
-          case 'transportes':
-            lancamentoBase.justificativa = 'Transporte de equipamentos';
-            lancamentoBase.pcdp = 'PCDP-003';
-            break;
+  const carregarSaldos = async () => {
+    try {
+      setIsLoading(true);
+      const saldos = await getSaldoGeral();
+      
+      // Transformar array de saldos em objeto
+      const verbasObj = {};
+      saldos.forEach(saldo => {
+        const categoriaId = categorias.find(c => c.nome === saldo.categoria)?.id;
+        if (categoriaId) {
+          verbasObj[categoriaId] = {
+            verba: saldo.verba_total,
+            gasto: saldo.total_gasto,
+            saldo: saldo.saldo_atual
+          };
         }
-
-        lancamentos.push(lancamentoBase);
-      }
-    });
-
-    return lancamentos;
+      });
+      
+      setVerbas(verbasObj);
+    } catch (error) {
+      console.error('Erro ao carregar saldos:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleFiltroChange = (campo, valor) => {
@@ -142,11 +71,33 @@ const Relatorios = () => {
     try {
       setIsLoading(true);
 
-      // Aqui virá a chamada para a API do backend
-      const lancamentos = gerarDadosLancamentos();
-
-      // Criar planilha
-      const wb = XLSX.utils.book_new();
+      // Objeto para armazenar lançamentos de todas as categorias
+      const todosLancamentos = {};
+      
+      // Determinar quais categorias buscar
+      const categoriasParaBuscar = filtros.categoria === 'todas' 
+        ? categorias.filter(c => c.id !== 'todas').map(c => c.id)
+        : [filtros.categoria];
+      
+      // Buscar lançamentos de cada categoria
+      for (const categoriaId of categoriasParaBuscar) {
+        try {
+          const ano = filtros.dataInicio ? new Date(filtros.dataInicio).getFullYear() : undefined;
+          const mes = filtros.dataInicio ? new Date(filtros.dataInicio).getMonth() + 1 : undefined;
+          
+          // Ajuste nos IDs das categorias para corresponder às rotas da API
+          const rotaCategoria = categoriaId.replace(/([A-Z])/g, '-$1').toLowerCase();
+          
+          const lancamentos = await getLancamentos(rotaCategoria, ano, mes);
+          const categoriaNome = categorias.find(c => c.id === categoriaId)?.nome;
+          
+          if (categoriaNome && lancamentos.length > 0) {
+            todosLancamentos[categoriaNome] = lancamentos;
+          }
+        } catch (error) {
+          console.error(`Erro ao buscar lançamentos de ${categoriaId}:`, error);
+        }
+      }
 
       // Definir cabeçalhos específicos por categoria
       const headersPorCategoria = {
@@ -163,22 +114,18 @@ const Relatorios = () => {
         'Transportes': ['Data', 'Justificativa', 'Solicitante', 'PCDP', 'Valor']
       };
 
-      // Agrupar lançamentos por categoria
-      const lancamentosPorCategoria = lancamentos.reduce((acc, lancamento) => {
-        if (!acc[lancamento.categoria]) {
-          acc[lancamento.categoria] = [];
-        }
-        acc[lancamento.categoria].push(lancamento);
-        return acc;
-      }, {});
+      // Criar planilha
+      const wb = XLSX.utils.book_new();
 
-      // Criar uma worksheet para cada categoria ou uma única com separadores
+      // Criar uma worksheet para cada categoria
       if (filtros.categoria === 'todas') {
-        // Criar uma worksheet para cada categoria
-        Object.entries(lancamentosPorCategoria).forEach(([categoria, items]) => {
-          const headers = headersPorCategoria[categoria];
+        Object.entries(todosLancamentos).forEach(([categoria, items]) => {
+          if (!items || items.length === 0) return;
           
-          // Preparar dados específicos da categoria
+          const headers = headersPorCategoria[categoria];
+          if (!headers) return;
+          
+          // Mapear campos do backend para o relatório
           const dadosCategoria = items.map(item => {
             const dadosFiltrados = {};
             headers.forEach(header => {
@@ -186,14 +133,14 @@ const Relatorios = () => {
                 case 'Data': dadosFiltrados[header] = item.data; break;
                 case 'Valor': dadosFiltrados[header] = item.valor; break;
                 case 'Solicitante': dadosFiltrados[header] = item.solicitante; break;
-                case 'Nº Chamado': dadosFiltrados[header] = item.numeroChamado; break;
+                case 'Nº Chamado': dadosFiltrados[header] = item.numero_chamado; break;
                 case 'Justificativa': dadosFiltrados[header] = item.justificativa; break;
                 case 'Destino': dadosFiltrados[header] = item.destino; break;
                 case 'PCDP': dadosFiltrados[header] = item.pcdp; break;
                 case 'Placa': dadosFiltrados[header] = item.placa; break;
                 case 'KM': dadosFiltrados[header] = item.km; break;
                 case 'Patrimônio': dadosFiltrados[header] = item.patrimonio; break;
-                case 'Nº Requisição': dadosFiltrados[header] = item.numeroRequisicao; break;
+                case 'Nº Requisição': dadosFiltrados[header] = item.numero_requisicao; break;
                 case 'Material': dadosFiltrados[header] = item.material; break;
                 case 'Serviço': dadosFiltrados[header] = item.servico; break;
                 case 'Mês': dadosFiltrados[header] = item.mes; break;
@@ -204,20 +151,16 @@ const Relatorios = () => {
 
           // Criar worksheet para a categoria
           const ws = XLSX.utils.json_to_sheet(dadosCategoria, { header: headers });
-
-          // Ajustar largura das colunas
           ws['!cols'] = headers.map(() => ({ wch: 15 }));
-
-          // Adicionar worksheet ao workbook
-          XLSX.utils.book_append_sheet(wb, ws, categoria.substring(0, 31)); // Excel limita nome da aba em 31 caracteres
+          XLSX.utils.book_append_sheet(wb, ws, categoria.substring(0, 31));
         });
       } else {
         // Criar uma única worksheet para a categoria selecionada
-        const categoria = categorias.find(cat => cat.id === filtros.categoria)?.nome;
-        const headers = headersPorCategoria[categoria];
-        const items = lancamentosPorCategoria[categoria];
+        const categoriaNome = categorias.find(cat => cat.id === filtros.categoria)?.nome;
+        const headers = headersPorCategoria[categoriaNome];
+        const items = todosLancamentos[categoriaNome];
 
-        if (items && headers) {
+        if (items && headers && items.length > 0) {
           const dadosCategoria = items.map(item => {
             const dadosFiltrados = {};
             headers.forEach(header => {
@@ -225,14 +168,14 @@ const Relatorios = () => {
                 case 'Data': dadosFiltrados[header] = item.data; break;
                 case 'Valor': dadosFiltrados[header] = item.valor; break;
                 case 'Solicitante': dadosFiltrados[header] = item.solicitante; break;
-                case 'Nº Chamado': dadosFiltrados[header] = item.numeroChamado; break;
+                case 'Nº Chamado': dadosFiltrados[header] = item.numero_chamado; break;
                 case 'Justificativa': dadosFiltrados[header] = item.justificativa; break;
                 case 'Destino': dadosFiltrados[header] = item.destino; break;
                 case 'PCDP': dadosFiltrados[header] = item.pcdp; break;
                 case 'Placa': dadosFiltrados[header] = item.placa; break;
                 case 'KM': dadosFiltrados[header] = item.km; break;
                 case 'Patrimônio': dadosFiltrados[header] = item.patrimonio; break;
-                case 'Nº Requisição': dadosFiltrados[header] = item.numeroRequisicao; break;
+                case 'Nº Requisição': dadosFiltrados[header] = item.numero_requisicao; break;
                 case 'Material': dadosFiltrados[header] = item.material; break;
                 case 'Serviço': dadosFiltrados[header] = item.servico; break;
                 case 'Mês': dadosFiltrados[header] = item.mes; break;
@@ -244,6 +187,10 @@ const Relatorios = () => {
           const ws = XLSX.utils.json_to_sheet(dadosCategoria, { header: headers });
           ws['!cols'] = headers.map(() => ({ wch: 15 }));
           XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
+        } else {
+          // Se não houver lançamentos, criar planilha vazia
+          const ws = XLSX.utils.json_to_sheet([]);
+          XLSX.utils.book_append_sheet(wb, ws, "Sem Lançamentos");
         }
       }
 
@@ -263,7 +210,7 @@ const Relatorios = () => {
     } finally {
       setIsLoading(false);
     }
-  };;
+  };
 
   return (
     <div className="relatorios-container">
@@ -311,23 +258,35 @@ const Relatorios = () => {
               >
                 {isLoading ? 'Gerando...' : 'Gerar Relatório Excel'}
               </button>
+              
+              <button 
+                onClick={carregarSaldos} 
+                className="gerar-button"
+                disabled={isLoading}
+                style={{ marginTop: '10px', backgroundColor: '#6c757d' }}
+              >
+                Atualizar Dados
+              </button>
             </div>
           </div>
 
           <div className="resumo-section">
             <div className="verbas-grid">
-              {Object.entries(dadosVerbas).map(([categoria, dados]) => (
+              {Object.entries(verbas).map(([categoria, dados]) => (
                 <div key={categoria} className="verba-card">
                   <h3>{categorias.find(cat => cat.id === categoria)?.nome}</h3>
                   <div className="verba-info">
                     <p>Verba Total: R$ {dados.verba.toLocaleString()}</p>
                     <p>Gasto: R$ {dados.gasto.toLocaleString()}</p>
-                    <p>Saldo: R$ {(dados.verba - dados.gasto).toLocaleString()}</p>
+                    <p>Saldo: R$ {dados.saldo.toLocaleString()}</p>
                   </div>
                   <div className="progress-bar">
                     <div 
                       className="progress" 
-                      style={{ width: `${(dados.gasto / dados.verba) * 100}%` }}
+                      style={{ 
+                        width: `${(dados.gasto / dados.verba) * 100}%`,
+                        backgroundColor: dados.gasto > dados.verba ? '#dc3545' : '#4a90e2'
+                      }}
                     ></div>
                   </div>
                 </div>
