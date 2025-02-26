@@ -16,8 +16,15 @@ export const createVerba = async (verbaData) => {
 };
 
 export const updateVerba = async (id, verbaData) => {
-  const response = await api.put(`/verbas/${id}`, verbaData);
-  return response.data;
+  try {
+    console.log(`Tentando atualizar verba com ID: ${id}`);
+    console.log('Dados enviados:', verbaData);
+    const response = await api.put(`/verbas/${id}`, verbaData);
+    return response.data;
+  } catch (error) {
+    console.error('Detalhes do erro:', error.response || error);
+    throw error;
+  }
 };
 
 export const deleteVerba = async (id) => {
