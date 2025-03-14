@@ -82,13 +82,29 @@ const Relatorios = () => {
       // Buscar lançamentos de cada categoria
       for (const categoriaId of categoriasParaBuscar) {
         try {
-          const ano = filtros.dataInicio ? new Date(filtros.dataInicio).getFullYear() : undefined;
-          const mes = filtros.dataInicio ? new Date(filtros.dataInicio).getMonth() + 1 : undefined;
+          // Preparar parâmetros para a consulta
+          const params = {};
+          
+          // Adicionar período de datas se fornecido
+          if (filtros.dataInicio) {
+            params.dataInicio = filtros.dataInicio;
+          }
+          
+          if (filtros.dataFim) {
+            params.dataFim = filtros.dataFim;
+          }
+          
+          // Se não houver data de início ou fim, usar o ano atual como padrão
+          if (!params.dataInicio && !params.dataFim) {
+            const dataAtual = new Date();
+            params.ano = dataAtual.getFullYear();
+          }
           
           // Ajuste nos IDs das categorias para corresponder às rotas da API
           const rotaCategoria = categoriaId.replace(/([A-Z])/g, '-$1').toLowerCase();
           
-          const lancamentos = await getLancamentos(rotaCategoria, ano, mes);
+          // Buscar lançamentos com os parâmetros definidos
+          const lancamentos = await getLancamentos(rotaCategoria, params);
           const categoriaNome = categorias.find(c => c.id === categoriaId)?.nome;
           
           if (categoriaNome && lancamentos.length > 0) {
